@@ -82,6 +82,8 @@ export function Ajustes() {
         <p className="mt-2 text-sm text-gris">Cambiar la clave cierra la sesión en todos los equipos. Si la olvidas, se restablece desde Apps Script con la función restablecerClave().</p>
       </Seccion>
 
+      <BorrarDatos />
+
       <Seccion titulo="Conexión y datos">
         <div className="space-y-2">
           <p>Versión del servidor {ini.version}. {st.modo === 'demo' ? 'Modo demostración.' : <a href={ini.sheetUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold underline">Abrir la hoja de cálculo<ExternalLink className="size-4" aria-hidden /></a>}</p>
@@ -91,5 +93,35 @@ export function Ajustes() {
         </div>
       </Seccion>
     </div>
+  )
+}
+
+/** Borra pedidos, pagos, gastos, cajas e historial (por ejemplo, los datos de demostración antes de empezar en serio). */
+function BorrarDatos() {
+  const st = useStore()
+  const [clave, setClave] = useState('')
+  const [palabra, setPalabra] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const demo = st.inicial?.config.datos_demo === 'SI'
+  return (
+    <Seccion titulo="Borrar datos de ventas" className="border-e-canc">
+      <p className="mb-3">
+        {demo ? 'La hoja tiene datos de demostración. ' : ''}Borra todos los pedidos, cobros, devoluciones, gastos, cajas e historial.
+        Se conservan la carta, los ajustes y tu clave. No se puede deshacer desde la app (sí desde el historial de versiones de la hoja).
+      </p>
+      <div className="grid gap-3 md:grid-cols-2">
+        <Campo etiqueta="Tu clave"><Input type="password" autoComplete="current-password" value={clave} onChange={e => setClave(e.target.value)} /></Campo>
+        <Campo etiqueta="Escribe BORRAR para confirmar"><Input value={palabra} onChange={e => setPalabra(e.target.value)} autoCapitalize="characters" /></Campo>
+      </div>
+      <Btn variante="peligro" className="mt-3" disabled={!clave || palabra !== 'BORRAR'} cargando={enviando} onClick={async () => {
+        if (!(await confirmar({ titulo: 'Borrar datos de ventas', texto: 'Se borrarán todos los pedidos, cobros, gastos, cajas e historial. ¿Continuar?', ok: 'Borrar todo', peligro: true }))) return
+        setEnviando(true)
+        try {
+          await st.run('Borrar datos', () => st.call('borrarDatos', { clave, confirmacion: palabra }), 'Datos borrados. La hoja quedó lista para empezar.')
+          setClave(''); setPalabra('')
+          await st.recargarTodo()
+        } catch { /* aviso mostrado */ } finally { setEnviando(false) }
+      }}>Borrar datos de ventas</Btn>
+    </Seccion>
   )
 }

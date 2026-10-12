@@ -73,6 +73,12 @@ Para actualizar el backend: pega el `Code.gs` nuevo y en **Implementar → Gesti
 2. En *Environment variables* agrega `VITE_API_URL` = la URL `/exec`. (Sin esta variable, cada equipo puede ingresarla en “Configurar conexión” del login).
 3. Netlify publica al fusionar en `main`.
 
+### Datos de demostración (para presentar)
+- **`cargarDemo()`** (desde el editor de Apps Script, tarda 1–3 minutos): carga unos 10 días de operación ficticia usando las mismas funciones del negocio. Incluye más de 60 pedidos en todos los estados, cobros por todos los medios, saldos por cobrar, cancelaciones con y sin devolución, gastos de compra y operativos, 9 cajas cerradas (una con diferencia) y la caja de hoy abierta con aporte y retiro. También agrega precios de ejemplo para bebidas y extras, marcados “(demo)”. Se niega a correr si la hoja ya tiene ventas reales.
+- Mientras haya datos de demo, el panel muestra un aviso verde lima.
+- **`borrarDatos()`** (desde el editor) o **Ajustes → Borrar datos de ventas** (pide la clave y escribir BORRAR): borra pedidos, detalle, pagos, gastos, cajas, movimientos e historial, y las opciones “(demo)”. Conserva la carta, los ajustes y la clave. Los códigos de pedido vuelven a empezar en 001. Se recupera solo desde Archivo → Historial de versiones de la hoja.
+- El modo `?demo` del navegador carga exactamente los mismos datos, en memoria.
+
 ### 3. Primer uso
 Entra con la clave inicial y cámbiala en **Ajustes → Seguridad**. Revisa en **Carta** los productos “por revisar” (bebidas y Salchibroaster sin precio, descripciones pendientes) y en **Ajustes** confirma el número de WhatsApp.
 
@@ -81,7 +87,7 @@ Entra con la clave inicial y cámbiala en **Ajustes → Seguridad**. Revisa en *
 cd web
 npm install
 npm run dev          # abre http://localhost:5173/?demo  (clave: demo)
-npm test             # 33 pruebas: backend real + motor de indicadores
+npm test             # 37 pruebas: backend real + motor de indicadores
 npm run lint && npm run build
 ```
 
@@ -91,7 +97,7 @@ Cargado por `setup()` con IDs fijos (no se duplica). Los nombres llevan la categ
 ## Pruebas realizadas
 
 Ejecutadas en este entorno:
-- **Backend** (`web/src/backend.test.ts`, 29 pruebas): instalador idempotente y que no reinicia configuración; autenticación (sin sesión, sesión falsa o vencida, bloqueo por intentos, logout, cambio de clave revoca, clave nunca en texto); precios recalculados en el servidor; aviso si el total cambió; **doble clic/reintento sin duplicar** pedido, pago ni movimiento; **cambio de precio sin alterar el historial**; **producto agotado** o sin precio bloqueado con detalle; variantes y extras; cantidades e importes inválidos; protección contra fórmulas; **pago parcial y saldo**; transiciones; **cancelación de pedido pagado** (pendiente de devolución y devolución inmediata, ambas idempotentes); delivery por confirmar; **cierre de caja** con efectivo, Yape, gastos de caja, gasto fuera de caja, retiro y aporte; anulación de gastos; **escrituras interrumpidas** a mitad (detalle, pago) y su recuperación; lock ocupado; invalidación de caché; carta pública sin datos de clientes y solicitud pendiente con código.
+- **Backend** (`web/src/backend.test.ts`, 33 pruebas): instalador idempotente y que no reinicia configuración; autenticación (sin sesión, sesión falsa o vencida, bloqueo por intentos, logout, cambio de clave revoca, clave nunca en texto); precios recalculados en el servidor; aviso si el total cambió; **doble clic/reintento sin duplicar** pedido, pago ni movimiento; **cambio de precio sin alterar el historial**; **producto agotado** o sin precio bloqueado con detalle; variantes y extras; cantidades e importes inválidos; protección contra fórmulas; **pago parcial y saldo**; transiciones; **cancelación de pedido pagado** (pendiente de devolución y devolución inmediata, ambas idempotentes); delivery por confirmar; **cierre de caja** con efectivo, Yape, gastos de caja, gasto fuera de caja, retiro y aporte; anulación de gastos; **escrituras interrumpidas** a mitad (detalle, pago) y su recuperación; lock ocupado; invalidación de caché; carta pública sin datos de clientes y solicitud pendiente con código; `cargarDemo()` (≥5 registros en cada hoja, todos los estados, sin incompletos, no corre sobre ventas reales) y `borrarDatos()` (limpia lo operativo, conserva catálogo y configuración; desde el panel exige clave y BORRAR).
 - Comprobé que las pruebas fallan si se quita la protección de fórmulas, la idempotencia de ventas o la verificación de sesión.
 - **Coherencia** (`web/src/engine.test.ts`): ventas, cobros, devoluciones, saldo y ticket del motor cuadran con la caja del servidor; filtros por categoría, canal y medio.
 - **Navegador real** (Chromium, modo demo) en 390 px, 1024 px y 1440 px (`web/scripts/recorrido.mjs`): login con clave errada y correcta, producto sin precio bloqueado, venta con pago parcial guardada con doble clic (una sola), cobro del saldo, cancelación con devolución pendiente, cierre de caja con diferencia. Sin errores de página.

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { crearBackend, type Backend } from './lib/fakegas'
+import { sumarDias } from './lib/util'
 
 const CODE = readFileSync(resolve(__dirname, '../../apps-script/Code.gs'), 'utf8')
 const CLAVE = 'clave-de-prueba-1'
@@ -358,5 +359,56 @@ describe('carta pública (segunda etapa)', () => {
     expect(p).toHaveLength(1)
     expect([p[0].estado, p[0].origen, p[0].pagado]).toEqual(['pendiente', 'carta', 0])
     expect(b.post('crearSolicitud', { ...s, clave: clave(), cliente: '' }).error?.code).toBe('VALIDATION')
+  })
+})
+
+describe('datos de demostración y borrado', () => {
+  it('cargarDemo llena todas las hojas con 5 o más registros y cuadra', () => {
+    const r = b.cargarDemo()
+    for (const h of ['PEDIDOS', 'DETALLE_PEDIDOS', 'PAGOS', 'GASTOS', 'CAJAS', 'MOVIMIENTOS_CAJA', 'HISTORIAL_ESTADOS', 'OPCIONES']) {
+      expect(filas(h).length, h).toBeGreaterThanOrEqual(5)
+    }
+    expect(r.pedidos).toBeGreaterThanOrEqual(50)
+    const hoy = ok('inicial').hoy
+    const d = ok('rango', { desde: sumarDias(hoy, -30), hasta: hoy, fresh: true })
+    expect(d.incompletos).toHaveLength(0)
+    const estados = new Set(rangoHoy().pedidos.map((p: any) => p.estado))
+    for (const e of ['pendiente', 'confirmado', 'preparando', 'listo', 'entregado', 'cancelado']) expect(estados.has(e), e).toBe(true)
+    const cajas = ok('cajas', { limite: 30 })
+    expect(cajas.filter((c: any) => c.estado === 'cerrada').length).toBeGreaterThanOrEqual(5)
+    expect(cajas.filter((c: any) => c.estado === 'abierta')).toHaveLength(1)
+    expect(ok('inicial').config.datos_demo).toBe('SI')
+    expect(() => b.cargarDemo()).toThrow(/ya están cargados/)
+  })
+
+  it('borrarDatos deja la hoja limpia, conserva catálogo, configuración y clave', () => {
+    ok('saveConfig', { valores: { horario: '6 pm a 11 pm' } })
+    b.cargarDemo()
+    const r = b.borrarDatos()
+    expect(r.PEDIDOS).toBeGreaterThan(0)
+    for (const h of ['PEDIDOS', 'DETALLE_PEDIDOS', 'PAGOS', 'GASTOS', 'CAJAS', 'MOVIMIENTOS_CAJA', 'HISTORIAL_ESTADOS', 'OPCIONES']) expect(filas(h), h).toHaveLength(0)
+    const d = ok('inicial', { fresh: true })
+    expect(d.productos).toHaveLength(25)
+    expect(d.config.horario).toBe('6 pm a 11 pm')
+    expect(d.config.datos_demo).toBe('NO')
+    expect(d.caja).toBeNull()
+    expect(rangoHoy().pedidos).toHaveLength(0)
+    // Los códigos vuelven a empezar y se puede vender normalmente.
+    expect(venta([{ productoId: 'prd-hamb-doble', cantidad: 1 }]).codigo).toMatch(/-001$/)
+  })
+
+  it('no carga la demo encima de ventas reales', () => {
+    venta([{ productoId: 'prd-hamb-doble', cantidad: 1 }])
+    expect(() => b.cargarDemo()).toThrow(/ya tiene ventas/)
+  })
+
+  it('desde el panel exige la clave y la palabra BORRAR', () => {
+    b.cargarDemo()
+    expect(err('borrarDatos', { clave: 'mala', confirmacion: 'BORRAR' }).message).toMatch(/clave/)
+    expect(err('borrarDatos', { clave: CLAVE, confirmacion: 'si' }).message).toMatch(/BORRAR/)
+    expect(filas('PEDIDOS').length).toBeGreaterThan(0)
+    ok('borrarDatos', { clave: CLAVE, confirmacion: 'BORRAR' })
+    expect(filas('PEDIDOS')).toHaveLength(0)
+    expect(err('borrarDatos', { clave: CLAVE, confirmacion: 'BORRAR' }, '').code).toBe('UNAUTHORIZED')
   })
 })

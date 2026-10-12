@@ -97,7 +97,7 @@ export function Pedidos() {
               <tbody className="divide-y-2 divide-linea">
                 {lista.map(p => (
                   <tr key={p.id} className="align-top hover:bg-papel">
-                    <td className="px-3 py-2"><button type="button" onClick={() => setAbierto(p.id)} className="font-bold underline tabular cursor-pointer">{p.codigo}</button></td>
+                    <td className="px-3 py-2"><button type="button" onClick={() => setAbierto(p.id)} className="font-bold whitespace-nowrap underline tabular cursor-pointer">{p.codigo}</button></td>
                     <td className="px-3 py-2 tabular">{p.enRango ? hora(p.creadoEn) : fechaCorta(p.fecha)}</td>
                     <td className="px-3 py-2">{p.cliente || '—'}<span className="block text-sm text-gris">{ETIQUETA_CANAL[p.canal]}</span></td>
                     <td className="max-w-xs px-3 py-2 text-sm">{resumen(p)}</td>

@@ -60,6 +60,7 @@ export function App() {
           ))}
         </nav>
         {st.modo === 'demo' && <p className="m-3 rounded-xl bg-lima px-3 py-2 text-sm font-bold text-noche">Modo demostración: datos de ejemplo que no se guardan en la hoja.</p>}
+        {st.modo === 'real' && st.inicial?.config.datos_demo === 'SI' && <p className="m-3 rounded-xl bg-lima px-3 py-2 text-sm font-bold text-noche">La hoja tiene datos de demostración. Bórralos en Ajustes antes de usarla en serio.</p>}
       </aside>
 
       <div className="min-w-0 pb-24 xl:pb-8">
@@ -71,6 +72,7 @@ export function App() {
           </div>
           <div className="franja" />
           {st.modo === 'demo' && <p className="bg-lima px-4 py-1 text-sm font-bold text-noche">Modo demostración: nada se guarda en la hoja real.</p>}
+          {st.modo === 'real' && st.inicial?.config.datos_demo === 'SI' && <p className="bg-lima px-4 py-1 text-sm font-bold text-noche">Datos de demostración cargados. Bórralos en Ajustes antes de usar la app en serio.</p>}
         </header>
         <div className="sticky top-0 z-10 hidden items-center justify-end gap-3 bg-papel/90 px-6 py-2 backdrop-blur xl:flex">
           <EstadoGuardado claro />

@@ -40,6 +40,10 @@ class FakeRange {
     return this
   }
   setNumberFormat() { return this }
+  clearContent() {
+    for (let i = 0; i < this.nr; i++) { const row = this.s.rows[this.r - 1 + i]; if (row) for (let j = 0; j < this.nc; j++) row[this.c - 1 + j] = '' }
+    return this
+  }
   setFontWeight() { return this }
   setBackground() { return this }
 }
@@ -114,6 +118,8 @@ export interface Backend {
   post(action: string, payload?: unknown, sesion?: string): { ok: boolean; data?: any; error?: { code: string; message: string; detalle?: any } }
   get(): { ok: boolean; data?: any }
   setup(): void
+  cargarDemo(): Record<string, number>
+  borrarDatos(): Record<string, number>
   fijarClave(clave: string): void
   fallarEn(paso: string): void
   reloj(fn: (() => number) | null): void
@@ -170,7 +176,7 @@ export function crearBackend(code: string, opts: BackendOpts = {}): Backend {
     console: { error: () => {}, warn: () => {}, log: () => {} },
   }
   const names = Object.keys(env)
-  const expose = `;return { doPost: doPost, doGet: doGet, setup: setup, restablecerClave: restablecerClave,
+  const expose = `;return { doPost: doPost, doGet: doGet, setup: setup, restablecerClave: restablecerClave, cargarDemo: cargarDemo, borrarDatos: borrarDatos,
     fijarClave: fijarClave_, set: function (k, v) { if (k === 'F') FALLAS_PRUEBA = v; if (k === 'R') RELOJ_PRUEBA = v; } };`
   // eslint-disable-next-line no-new-func
   const api = new Function(...names, code + expose)(...names.map(k => env[k]))
@@ -181,6 +187,8 @@ export function crearBackend(code: string, opts: BackendOpts = {}): Backend {
     },
     get() { return JSON.parse(api.doGet()) },
     setup() { api.setup() },
+    cargarDemo() { return api.cargarDemo() },
+    borrarDatos() { return api.borrarDatos() },
     fijarClave(clave) { api.fijarClave(clave) },
     fallarEn(paso) { api.set('F', { [paso]: true }) },
     reloj(fn) { api.set('R', fn) },

@@ -1483,6 +1483,223 @@ function crearSolicitud_(p) {
     whatsapp: cat.config.whatsapp_validado === 'SI' ? cat.config.whatsapp_numero : '', duplicado: !!r.duplicado };
 }
 
+/* ===================== Datos de demostración y borrado ===================== */
+// Para presentar la app: cargarDemo() llena la hoja con ~10 días de operación ficticia usando las mismas funciones
+// del negocio (mismos cálculos y validaciones). borrarDatos() deja la hoja lista para usar en serio.
+// Ambas se ejecutan desde el editor de Apps Script. borrarDatos también está en Ajustes del panel (pide la clave).
+
+var HOJAS_OPERACION = ['PEDIDOS', 'DETALLE_PEDIDOS', 'PAGOS', 'GASTOS', 'CAJAS', 'MOVIMIENTOS_CAJA', 'HISTORIAL_ESTADOS'];
+var DEMO_CLIENTES = ['Rosa', 'Luis', 'Carla', 'Jorge', 'Milagros', 'Kevin', 'Andrea', 'Miguel', 'Lucía', 'Renzo', 'Fiorella', 'Diego'];
+var DEMO_DIRECCIONES = [['Jr. Los Pinos 145', 'Puerta verde'], ['Av. Las Flores 820', 'Frente al parque'], ['Calle Los Olivos 312', 'Segundo piso'],
+  ['Pasaje Santa Rosa 77', 'Al costado de la bodega'], ['Av. Principal 1450', 'Edificio azul, dpto 302']];
+var DEMO_NOTAS = ['Sin ensalada', 'Cremas aparte', 'Bien cocido', 'Sin cebolla', 'Papas bien doradas', 'Ají aparte'];
+// [id, producto, tipo, nombre, precio]: precios ficticios solo para la demo. borrarDatos() los elimina.
+var DEMO_OPCIONES = [
+  ['opc-demo-inca-500', 'prd-beb-gaseosas', 'variante', 'Inca Kola 500 ml (demo)', 3.5],
+  ['opc-demo-coca-500', 'prd-beb-gaseosas', 'variante', 'Coca-Cola 500 ml (demo)', 3.5],
+  ['opc-demo-inca-1l', 'prd-beb-gaseosas', 'variante', 'Inca Kola 1 L (demo)', 6],
+  ['opc-demo-chicha-vaso', 'prd-beb-chicha', 'variante', 'Vaso (demo)', 3],
+  ['opc-demo-chicha-jarra', 'prd-beb-chicha', 'variante', 'Jarra 1 L (demo)', 10],
+  ['opc-demo-inf-manz', 'prd-beb-infusiones', 'variante', 'Manzanilla (demo)', 2.5],
+  ['opc-demo-inf-anis', 'prd-beb-infusiones', 'variante', 'Anís (demo)', 2.5],
+  ['opc-demo-hc-huevo', 'prd-hamb-clasica', 'extra', 'Huevo', 1.5],
+  ['opc-demo-hc-queso', 'prd-hamb-clasica', 'extra', 'Queso', 1.5],
+  ['opc-demo-hc-tocino', 'prd-hamb-clasica', 'extra', 'Tocino', 3],
+  ['opc-demo-sc-huevo', 'prd-salc-clasica', 'extra', 'Huevo frito', 1.5]
+];
+var DEMO_PLATOS = ['prd-hamb-clasica', 'prd-hamb-doble', 'prd-hamb-triple', 'prd-hamb-royal', 'prd-hamb-broaster', 'prd-hamb-parrillera',
+  'prd-hamb-bbq', 'prd-brst-alita', 'prd-brst-pierna', 'prd-brst-encuentro', 'prd-brst-pecho', 'prd-salc-clasica', 'prd-salc-mechada',
+  'prd-salc-burger', 'prd-salc-choripapas', 'prd-esp-papa-rellena', 'prd-esp-alitas-acevichadas', 'prd-esp-filete-pollo',
+  'prd-esp-chuleta', 'prd-esp-churrasco', 'prd-esp-bistec-pobre'];
+var DEMO_BEBIDAS = ['opc-demo-inca-500', 'opc-demo-coca-500', 'opc-demo-inca-1l', 'opc-demo-chicha-vaso', 'opc-demo-chicha-jarra', 'opc-demo-inf-manz'];
+
+/** Ejecutar desde el editor. Tarda 1–3 minutos en Google. Solo funciona con la hoja sin ventas reales. */
+function cargarDemo() {
+  var r = conLock_(function () { return sembrarDemo_(); });
+  invalidar_('cat');
+  invalidar_('dat');
+  Logger.log('Datos de demostración cargados: ' + JSON.stringify(r));
+  Logger.log('Para dejar la hoja limpia antes de usarla en serio, ejecuta borrarDatos().');
+  return r;
+}
+
+/**
+ * Ejecutar desde el editor. Borra pedidos, detalle, pagos, gastos, cajas, movimientos e historial, y las opciones de demo.
+ * Conserva el catálogo, la configuración, la clave y las sesiones. No se puede deshacer desde la app
+ * (sí desde Archivo → Historial de versiones de la hoja).
+ */
+function borrarDatos() {
+  var r = conLock_(function () { return borrarDatos_(); });
+  invalidar_('cat');
+  invalidar_('dat');
+  Logger.log('Datos borrados: ' + JSON.stringify(r));
+  return r;
+}
+
+function fijarConfig_(ss, clave, valor) {
+  var t = leer_(ss, 'CONFIG');
+  var o = t.porId[clave];
+  var now = iso_(ahora_());
+  if (o) { o.valor = valor; o.actualizadoEn = now; guardar_(t, o); }
+  else agregar_(t, [{ clave: clave, valor: valor, descripcion: 'Uso interno', actualizadoEn: now }]);
+}
+
+function borrarDatos_() {
+  var ss = openSpreadsheet_(false);
+  var out = {};
+  HOJAS_OPERACION.forEach(function (n) {
+    var sh = ss.getSheetByName(n);
+    var last = lastDataRow_(sh);
+    out[n] = last - 1;
+    if (last >= 2) sh.getRange(2, 1, last - 1, SHEETS[n].length).clearContent();
+  });
+  var t = leer_(ss, 'OPCIONES');
+  var quedan = t.objs.filter(function (o) { return o.id.indexOf('opc-demo-') !== 0; });
+  out.OPCIONES_DEMO = t.objs.length - quedan.length;
+  if (out.OPCIONES_DEMO) {
+    t.sh.getRange(2, 1, lastDataRow_(t.sh) - 1, SHEETS.OPCIONES.length).clearContent();
+    if (quedan.length) t.sh.getRange(2, 1, quedan.length, SHEETS.OPCIONES.length).setValues(quedan.map(function (o) { return aFila_('OPCIONES', o); }));
+  }
+  var props = PropertiesService.getScriptProperties();
+  var all = props.getProperties();
+  Object.keys(all).forEach(function (k) { if (k.indexOf('COD_') === 0) props.deleteProperty(k); });
+  fijarConfig_(ss, 'datos_demo', 'NO');
+  return out;
+}
+
+/** Desde el panel: exige la clave de nuevo, porque borra todo lo operativo. */
+function borrarDatosPanel_(p) {
+  var props = PropertiesService.getScriptProperties();
+  if (!igualSeguro_(derivar_(typeof p.clave === 'string' ? p.clave : '', props.getProperty('CLAVE_SAL') || ''), props.getProperty('CLAVE_HASH') || '')) {
+    throw appError_('VALIDATION', 'La clave no es correcta. No se borró nada.');
+  }
+  if (p.confirmacion !== 'BORRAR') throw appError_('VALIDATION', 'Escribe BORRAR para confirmar.');
+  return borrarDatos_();
+}
+
+function sembrarDemo_() {
+  var ss = openSpreadsheet_(false);
+  var cfg = configMapa_(ss);
+  if (cfg.datos_demo === 'SI') throw new Error('Los datos de demostración ya están cargados. Ejecuta borrarDatos() si quieres cargarlos de nuevo.');
+  if (leer_(ss, 'PEDIDOS').objs.length) throw new Error('La hoja ya tiene ventas. Para no mezclar datos reales con datos de prueba, ejecuta borrarDatos() primero.');
+
+  var semilla = 20261012;
+  var rnd = function () { semilla = (semilla * 1664525 + 1013904223) % 4294967296; return semilla / 4294967296; };
+  var pick = function (a) { return a[Math.floor(rnd() * a.length)]; };
+  var k = function () { return uuid_(); };
+  var ahoraReal = ahora_().getTime();
+  var base0 = Date.parse(fechaLima_(ahora_()) + 'T00:00:00-05:00');
+  var en = function (dias, minutosDelDia) { var t = base0 - dias * 86400000 + minutosDelDia * 60000; RELOJ_PRUEBA = function () { return t; }; };
+  var hace = function (minutos) { var t = ahoraReal - minutos * 60000; RELOJ_PRUEBA = function () { return t; }; };
+  var cuenta = { pedidos: 0, pagos: 0, gastos: 0, cajas: 0 };
+
+  var lineas = function () {
+    var n = 1 + Math.floor(rnd() * 3);
+    var out = [];
+    for (var i = 0; i < n; i++) {
+      var pid = pick(DEMO_PLATOS);
+      var l = { productoId: pid, cantidad: rnd() < 0.75 ? 1 : 2 };
+      if (pid === 'prd-hamb-clasica' && rnd() < 0.5) l.extras = [pick(['opc-demo-hc-huevo', 'opc-demo-hc-queso', 'opc-demo-hc-tocino'])];
+      if (rnd() < 0.25) l.nota = pick(DEMO_NOTAS);
+      out.push(l);
+    }
+    if (rnd() < 0.6) {
+      var b = pick(DEMO_BEBIDAS);
+      var prod = b.indexOf('chicha') >= 0 ? 'prd-beb-chicha' : b.indexOf('inf-') >= 0 ? 'prd-beb-infusiones' : 'prd-beb-gaseosas';
+      out.push({ productoId: prod, varianteId: b, cantidad: 1 + Math.floor(rnd() * 2) });
+    }
+    return out;
+  };
+  var venta = function (o) {
+    var canal = o.canal || pick(['local', 'local', 'local', 'recojo', 'delivery']);
+    var d = pick(DEMO_DIRECCIONES);
+    var p = { clave: k(), canal: canal, estado: o.estado || 'entregado', lineas: o.lineas || lineas(), nota: o.nota || '',
+      cliente: canal === 'local' ? (rnd() < 0.3 ? pick(DEMO_CLIENTES) : '') : pick(DEMO_CLIENTES),
+      telefono: canal === 'delivery' ? '9' + String(10000000 + Math.floor(rnd() * 89999999)) : '',
+      direccion: canal === 'delivery' ? d[0] : '', referencia: canal === 'delivery' ? d[1] : '',
+      delivery: canal === 'delivery' ? (o.deliveryPorConfirmar ? null : pick([0, 3, 4, 5])) : null };
+    var r = crearPedido_(p, o.origen || 'panel');
+    cuenta.pedidos++;
+    return r;
+  };
+  var cobrar = function (r, medio, monto) {
+    registrarPago_({ clave: k(), pedidoId: r.id, medio: medio, monto: monto === undefined ? r.total : monto });
+    cuenta.pagos++;
+  };
+  var gasto = function (categoria, tipo, monto, medio, desdeCaja, descripcion) {
+    crearGasto_({ clave: k(), categoria: categoria, tipo: tipo, monto: monto, medio: medio, desdeCaja: desdeCaja, descripcion: descripcion,
+      fecha: fechaLima_(ahora_()), comprobante: rnd() < 0.4 ? 'B001-' + (1000 + Math.floor(rnd() * 8999)) : '' });
+    cuenta.gastos++;
+  };
+
+  try {
+    en(1, 9 * 60);
+    var now = iso_(ahora_());
+    var ops = leer_(ss, 'OPCIONES');
+    agregar_(ops, DEMO_OPCIONES.filter(function (x) { return !ops.porId[x[0]]; }).map(function (x, i) {
+      return { id: x[0], productoId: x[1], tipo: x[2], nombre: x[3], precio: x[4], activo: true, orden: i + 1, creadoEn: now, actualizadoEn: now };
+    }));
+
+    // Días anteriores: caja abierta y cerrada cada día, ventas entregadas, gastos y algún imprevisto.
+    for (var dia = 9; dia >= 1; dia--) {
+      en(dia, 11 * 60 + 30);
+      var caja = abrirCaja_({ clave: k(), fondo: pick([30, 50, 50, 80]) });
+      cuenta.cajas++;
+      var n = 5 + Math.floor(rnd() * 4);
+      for (var i = 0; i < n; i++) {
+        en(dia, 12 * 60 + i * 70 + Math.floor(rnd() * 40));
+        var r = venta({});
+        var medio = pick(['Efectivo', 'Efectivo', 'Yape', 'Yape', 'Plin', 'Transferencia']);
+        if (dia === 4 && i === 1) cobrar(r, medio, Math.round(r.total / 2)); // queda saldo por cobrar
+        else if (dia === 2 && i === 0) { /* fiado: sin cobro */ }
+        else cobrar(r, medio);
+      }
+      // Un pedido cancelado y devuelto en un día anterior.
+      if (dia === 6) {
+        en(dia, 20 * 60);
+        var c = venta({ estado: 'confirmado', canal: 'delivery' });
+        cobrar(c, 'Yape');
+        cancelarPedido_({ pedidoId: c.id, motivo: 'Cliente no estaba en la dirección', devolucion: 'devuelto', medioDevolucion: 'Yape', clave: k() });
+      }
+      en(dia, 10 * 60 + 15);
+      gasto(pick(['Ingredientes', 'Ingredientes', 'Bebidas', 'Envases']), 'compra', 40 + Math.floor(rnd() * 90), pick(['Efectivo', 'Transferencia', 'Yape']), false,
+        pick(['Papas y verduras del mercado', 'Pollo para broaster', 'Pan de hamburguesa', 'Gaseosas para la semana', 'Tápers y bolsas']));
+      if (dia % 3 === 0) { en(dia, 17 * 60); gasto(pick(['Gas', 'Limpieza', 'Transporte']), 'operativo', 8 + Math.floor(rnd() * 25), 'Efectivo', true, pick(['Recarga de balón', 'Detergente y lejía', 'Mototaxi al mercado'])); }
+      if (dia % 4 === 0) { en(dia, 18 * 60); movimientoCaja_({ clave: k(), tipo: 'retiro', monto: 40, medio: 'Efectivo', nota: 'Retiro para pasajes' }); }
+      en(dia, 22 * 60 + 30);
+      var esperado = cajaActual_({ id: caja.id }, ss).actual.efectivoEsperado;
+      var faltante = dia === 5 ? 2.5 : 0;
+      cerrarCaja_({ cajaId: caja.id, contado: Math.round((esperado - faltante) * 100) / 100, observacion: faltante ? 'Vuelto mal dado en la noche' : '' });
+    }
+
+    // Hoy: caja abierta y pedidos en todos los estados.
+    hace(300);
+    abrirCaja_({ clave: k(), fondo: 50 });
+    cuenta.cajas++;
+    hace(290); movimientoCaja_({ clave: k(), tipo: 'aporte', monto: 20, medio: 'Efectivo', nota: 'Sencillo para vuelto' });
+    hace(280); gasto('Gas', 'operativo', 12, 'Efectivo', true, 'Recarga de balón');
+    hace(270); gasto('Ingredientes', 'compra', 85, 'Transferencia', false, 'Carne y pollo del día');
+    var t = 250;
+    ['Efectivo', 'Yape', 'Plin', 'Efectivo'].forEach(function (m) { hace(t); t -= 15; cobrar(venta({ canal: 'local' }), m); });
+    hace(t); t -= 15; var parcial = venta({ canal: 'recojo' }); cobrar(parcial, 'Yape', Math.max(1, Math.round(parcial.total / 2)));
+    hace(t); t -= 15; venta({ canal: 'local' }); // entregado sin cobrar
+    hace(t); t -= 15; var conf = venta({ estado: 'confirmado', canal: 'local' }); cobrar(conf, 'Efectivo');
+    hace(t); t -= 15; venta({ estado: 'confirmado', canal: 'recojo', nota: 'Pasa a recoger a las 8' });
+    hace(t); t -= 15; var prep = venta({ estado: 'preparando', canal: 'delivery' }); cobrar(prep, 'Plin', Math.max(1, Math.round(prep.total / 3)));
+    hace(t); t -= 15; venta({ estado: 'preparando', canal: 'local' });
+    hace(t); t -= 15; var listo = venta({ estado: 'listo', canal: 'recojo' }); cobrar(listo, 'Yape');
+    hace(t); t -= 15; var canc = venta({ estado: 'confirmado', canal: 'local' }); cobrar(canc, 'Efectivo');
+    cancelarPedido_({ pedidoId: canc.id, motivo: 'Se demoró mucho y el cliente se fue', devolucion: 'pendiente', clave: k() });
+    hace(t); t -= 15; venta({ estado: 'pendiente', canal: 'delivery', deliveryPorConfirmar: true, origen: 'carta' });
+    hace(t); t -= 15; venta({ estado: 'pendiente', canal: 'delivery', deliveryPorConfirmar: true });
+    hace(Math.max(t, 5)); movimientoCaja_({ clave: k(), tipo: 'retiro', monto: 30, medio: 'Efectivo', nota: 'Compra de último minuto' });
+  } finally {
+    RELOJ_PRUEBA = null;
+  }
+  fijarConfig_(ss, 'datos_demo', 'SI');
+  return cuenta;
+}
+
 /* ===================== Tabla de acciones ===================== */
 var PUBLICAS = {
   login: login_,
@@ -1494,6 +1711,7 @@ var PRIVADAS = {
   logout: logout_,
   logoutTodas: logoutTodas_,
   cambiarClave: cambiarClave_,
+  borrarDatos: borrarDatosPanel_,
   inicial: inicial_,
   rango: rango_,
   pedido: pedido_,
@@ -1531,5 +1749,5 @@ var INVALIDA = {
   registrarDevolucion: DATOS, reparar: DATOS, crearGasto: DATOS, anularGasto: DATOS, abrirCaja: DATOS, movimientoCaja: DATOS,
   anularMovimiento: DATOS, cerrarCaja: DATOS,
   saveConfig: CATALOGO, saveCategoria: CATALOGO, saveProducto: CATALOGO, marcarProducto: CATALOGO, saveOpcion: CATALOGO,
-  reordenar: CATALOGO, subirFoto: CATALOGO
+  reordenar: CATALOGO, subirFoto: CATALOGO, borrarDatos: ['cat', 'dat']
 };
