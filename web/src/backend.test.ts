@@ -397,9 +397,23 @@ describe('datos de demostración y borrado', () => {
     expect(venta([{ productoId: 'prd-hamb-doble', cantidad: 1 }]).codigo).toMatch(/-001$/)
   })
 
+  it('escribe cada hoja en un solo bloque (rápido en Google) e imprime el conteo', () => {
+    for (const sh of b.ss.sheets.values()) sh.writes = 0
+    const r = b.cargarDemo()
+    for (const [n, sh] of b.ss.sheets) expect(sh.writes, n).toBeLessThanOrEqual(2)
+    console.log('Filas de la demo:', JSON.stringify(r.filas))
+  })
+
+  it('si quedó una carga a medias, pide borrar primero', () => {
+    ok('abrirCaja', { clave: clave(), fondo: 10 })
+    expect(() => b.cargarDemo()).toThrow(/borrarDatos\(\) primero/)
+    b.borrarDatos()
+    expect(b.cargarDemo().pedidos).toBeGreaterThan(50)
+  })
+
   it('no carga la demo encima de ventas reales', () => {
     venta([{ productoId: 'prd-hamb-doble', cantidad: 1 }])
-    expect(() => b.cargarDemo()).toThrow(/ya tiene ventas/)
+    expect(() => b.cargarDemo()).toThrow(/ya tiene datos en PEDIDOS/)
   })
 
   it('desde el panel exige la clave y la palabra BORRAR', () => {

@@ -198,6 +198,7 @@ function uno_(v, lista, label) {
 
 /* ===================== Acceso a hojas ===================== */
 function openSpreadsheet_(create) {
+  if (SS_MEMORIA) return SS_MEMORIA;
   var props = PropertiesService.getScriptProperties();
   var id = props.getProperty('SPREADSHEET_ID');
   if (id) return SpreadsheetApp.openById(id);
@@ -522,6 +523,7 @@ function cacheGuardar_(clave, data, tipo, gen) {
   } catch (e) { console.warn('Sin caché: ' + e.message); }
 }
 function conCache_(tipo, nombre, fresh, fn) {
+  if (SS_MEMORIA) return fn();
   var gen = gen_(tipo);
   var clave = tipo + ':' + gen + ':' + nombre;
   var c = fresh ? null : cacheLeer_(clave);
@@ -1513,7 +1515,7 @@ var DEMO_PLATOS = ['prd-hamb-clasica', 'prd-hamb-doble', 'prd-hamb-triple', 'prd
   'prd-esp-chuleta', 'prd-esp-churrasco', 'prd-esp-bistec-pobre'];
 var DEMO_BEBIDAS = ['opc-demo-inca-500', 'opc-demo-coca-500', 'opc-demo-inca-1l', 'opc-demo-chicha-vaso', 'opc-demo-chicha-jarra', 'opc-demo-inf-manz'];
 
-/** Ejecutar desde el editor. Tarda 1–3 minutos en Google. Solo funciona con la hoja sin ventas reales. */
+/** Ejecutar desde el editor (unos segundos). Solo funciona con las hojas de operación vacías. */
 function cargarDemo() {
   var r = conLock_(function () { return sembrarDemo_(); });
   invalidar_('cat');
@@ -1577,11 +1579,90 @@ function borrarDatosPanel_(p) {
   return borrarDatos_();
 }
 
+/* ---------- Hoja en memoria para cargar la demo rápido ---------- */
+// Escribir fila por fila en Sheets supera los 6 minutos de Apps Script. cargarDemo() trabaja sobre una copia en memoria
+// con las mismas funciones del negocio y al final escribe cada hoja con una sola operación.
+var SS_MEMORIA = null;
+
+function rangoMemoria_(rows, r, c, nr, nc) {
+  return {
+    getValues: function () {
+      var out = [];
+      for (var i = 0; i < nr; i++) {
+        var fila = [];
+        for (var j = 0; j < nc; j++) { var f = rows[r - 1 + i]; var v = f ? f[c - 1 + j] : ''; fila.push(v === undefined ? '' : v); }
+        out.push(fila);
+      }
+      return out;
+    },
+    setValues: function (v) {
+      for (var i = 0; i < v.length; i++) {
+        var f = rows[r - 1 + i] || (rows[r - 1 + i] = []);
+        for (var j = 0; j < v[i].length; j++) f[c - 1 + j] = v[i][j];
+      }
+      return this;
+    },
+    clearContent: function () {
+      for (var i = 0; i < nr; i++) { var f = rows[r - 1 + i]; if (f) for (var j = 0; j < nc; j++) f[c - 1 + j] = ''; }
+      return this;
+    },
+    setNumberFormat: function () { return this; }, setFontWeight: function () { return this; }, setBackground: function () { return this; }
+  };
+}
+
+function hojaMemoria_(rows) {
+  return {
+    rows: rows,
+    getLastRow: function () {
+      for (var i = rows.length - 1; i >= 0; i--) if (rows[i] && rows[i].some(function (v) { return v !== '' && v !== null && v !== undefined; })) return i + 1;
+      return 0;
+    },
+    getLastColumn: function () { return rows.reduce(function (m, f) { return Math.max(m, f ? f.length : 0); }, 0); },
+    getMaxRows: function () { return Math.max(1000, rows.length); },
+    setFrozenRows: function () {},
+    getRange: function (r, c, nr, nc) { return rangoMemoria_(rows, r, c, nr || 1, nc || 1); }
+  };
+}
+
+/** Copia las hojas reales a memoria. Devuelve cuántas filas tenía cada una. */
+function abrirMemoria_(ss) {
+  var hojas = {}, originales = {};
+  Object.keys(ESQUEMA).forEach(function (n) {
+    var sh = ss.getSheetByName(n);
+    var last = sh ? lastDataRow_(sh) : 1;
+    var rows = sh ? sh.getRange(1, 1, last, SHEETS[n].length).getValues() : [SHEETS[n].slice()];
+    originales[n] = last;
+    hojas[n] = hojaMemoria_(rows);
+  });
+  SS_MEMORIA = { getSheetByName: function (n) { return hojas[n] || null; }, getUrl: function () { return ss.getUrl(); } };
+  return { hojas: hojas, originales: originales };
+}
+
+/** Escribe en la hoja real solo las filas nuevas de cada hoja, en un bloque por hoja. */
+function volcarMemoria_(ss, mem) {
+  var escritas = {};
+  Object.keys(ESQUEMA).forEach(function (n) {
+    var rows = mem.hojas[n].rows;
+    var desde = mem.originales[n];
+    var nuevas = rows.slice(desde).filter(function (f) { return f && str_(f[0]) !== ''; }).map(function (f) {
+      var x = [];
+      for (var j = 0; j < SHEETS[n].length; j++) x.push(f[j] === undefined ? '' : f[j]);
+      return x;
+    });
+    if (nuevas.length) ss.getSheetByName(n).getRange(desde + 1, 1, nuevas.length, SHEETS[n].length).setValues(nuevas);
+    escritas[n] = nuevas.length;
+  });
+  return escritas;
+}
+
 function sembrarDemo_() {
-  var ss = openSpreadsheet_(false);
-  var cfg = configMapa_(ss);
+  var real = openSpreadsheet_(false);
+  var cfg = configMapa_(real);
   if (cfg.datos_demo === 'SI') throw new Error('Los datos de demostración ya están cargados. Ejecuta borrarDatos() si quieres cargarlos de nuevo.');
-  if (leer_(ss, 'PEDIDOS').objs.length) throw new Error('La hoja ya tiene ventas. Para no mezclar datos reales con datos de prueba, ejecuta borrarDatos() primero.');
+  var conDatos = HOJAS_OPERACION.filter(function (n) { return lastDataRow_(real.getSheetByName(n)) > 1; });
+  if (conDatos.length) throw new Error('La hoja ya tiene datos en ' + conDatos.join(', ') + '. Para no mezclar datos, ejecuta borrarDatos() primero y luego cargarDemo().');
+  var mem = abrirMemoria_(real);
+  var ss = SS_MEMORIA;
 
   var semilla = 20261012;
   var rnd = function () { semilla = (semilla * 1664525 + 1013904223) % 4294967296; return semilla / 4294967296; };
@@ -1695,8 +1776,10 @@ function sembrarDemo_() {
     hace(Math.max(t, 5)); movimientoCaja_({ clave: k(), tipo: 'retiro', monto: 30, medio: 'Efectivo', nota: 'Compra de último minuto' });
   } finally {
     RELOJ_PRUEBA = null;
+    SS_MEMORIA = null;
   }
-  fijarConfig_(ss, 'datos_demo', 'SI');
+  cuenta.filas = volcarMemoria_(real, mem);
+  fijarConfig_(real, 'datos_demo', 'SI');
   return cuenta;
 }
 
