@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+/*
+ * Sistema de diseño Antojos & Tentaciones (estilo chicha).
+ * - Marca: noche, amarillo, fucsia, naranja, lima. Solo en banda, menú, títulos, botones principales y categorías.
+ * - Estados: tintas suaves + texto oscuro + icono. Nunca usan los fluorescentes de marca, para no confundirse.
+ * - Bungee solo para marca y títulos; Atkinson Hyperlegible para todo lo operativo.
+ */
+@theme {
+  --font-sans: "Atkinson Hyperlegible", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: "Bungee", "Arial Black", Impact, sans-serif;
+
+  --color-noche: #1A1022;
+  --color-noche-2: #2A1B36;
+  --color-amarillo: #FFD60A;
+  --color-fucsia: #FF1F8E;
+  --color-naranja: #FF6B00;
+  --color-lima: #B6F500;
+  --color-papel: #F4EFF7;
+  --color-tinta: #1F1726;
+  --color-gris: #5E5468;
+  --color-linea: #DDD3E4;
+
+  /* Estados del pedido (reservados) */
+  --color-e-pend: #7A5200;   --color-e-pend-bg: #FFF1C2;
+  --color-e-conf: #1E46B8;   --color-e-conf-bg: #E0E8FF;
+  --color-e-prep: #6427C4;   --color-e-prep-bg: #EEE5FF;
+  --color-e-listo: #08734E;  --color-e-listo-bg: #D6F5E6;
+  --color-e-entr: #3B4452;   --color-e-entr-bg: #E6E9EE;
+  --color-e-canc: #B3192B;   --color-e-canc-bg: #FFE1E4;
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--color-papel);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Título de cartel: amarillo con sombra dura fucsia. Es el elemento de marca; se usa con moderación. */
+.cartel {
+  font-family: var(--font-display);
+  color: var(--color-amarillo);
+  text-shadow: 3px 3px 0 var(--color-fucsia);
+  letter-spacing: 0.01em;
+  line-height: 1.05;
+}
+.titulo {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+}
+/* Franja chicha bajo la banda de marca. */
+.franja {
+  height: 6px;
+  background: linear-gradient(90deg, var(--color-amarillo) 0 25%, var(--color-naranja) 25% 50%, var(--color-fucsia) 50% 75%, var(--color-lima) 75% 100%);
+}
+
+/* Botón principal de cartel: borde negro y sombra dura. El clic "hunde" el botón. */
+.btn-cartel {
+  border: 2px solid var(--color-noche);
+  box-shadow: 3px 3px 0 var(--color-noche);
+  transition: transform .08s ease, box-shadow .08s ease;
+}
+.btn-cartel:active:not(:disabled) { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--color-noche); }
+
+:focus-visible { outline: 3px solid var(--color-fucsia); outline-offset: 2px; }
+button, a, input, select, textarea { touch-action: manipulation; }
+input, select, textarea { font: inherit; }
+dialog { padding: 0; border: 0; background: transparent; max-width: 100vw; max-height: 100dvh; }
+dialog::backdrop { background: rgb(26 16 34 / 0.6); }
+
+.placeholder-foto {
+  background:
+    repeating-linear-gradient(135deg, rgb(26 16 34 / .06) 0 10px, transparent 10px 20px),
+    #FFF7D6;
+}
+.scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+@keyframes entra { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.entra { animation: entra .18s ease-out; }
+@keyframes gira { to { transform: rotate(360deg); } }
+.gira { animation: gira 1s linear infinite; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
