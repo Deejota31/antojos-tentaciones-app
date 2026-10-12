@@ -3,6 +3,7 @@ import { KeyRound } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { guardarUrlApi, urlApi } from '../lib/api'
 import { Btn, Campo, Input } from '../components/ui'
+import { InstalarApp } from '../components/InstalarApp'
 
 /** Inicio de sesión. Como capa (overlay) cuando la sesión vence: lo que se estaba registrando sigue debajo. */
 export function Login({ overlay }: { overlay?: boolean }) {
@@ -53,6 +54,7 @@ export function Login({ overlay }: { overlay?: boolean }) {
             </div>
           )}
         </form>
+        {!overlay && <div className="mt-4 flex justify-center"><InstalarApp compacto /></div>}
       </div>
     </div>
   )

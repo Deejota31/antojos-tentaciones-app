@@ -3,6 +3,7 @@ import { BarChart3, ChefHat, ClipboardList, Home, Loader2, MoreHorizontal, Refre
 import { useStore } from './lib/store'
 import { Btn, Confirmador, cx } from './components/ui'
 import { Toaster } from './components/Toaster'
+import { InstalarApp } from './components/InstalarApp'
 import { Login } from './tabs/Login'
 import { Inicio } from './tabs/Inicio'
 import { Vender } from './tabs/Vender'
@@ -59,6 +60,7 @@ export function App() {
             </button>
           ))}
         </nav>
+        <InstalarApp compacto className="mx-3 mb-2" />
         {st.modo === 'demo' && <p className="m-3 rounded-xl bg-lima px-3 py-2 text-sm font-bold text-noche">Modo demostración: datos de ejemplo que no se guardan en la hoja.</p>}
         {st.modo === 'real' && st.inicial?.config.datos_demo === 'SI' && <p className="m-3 rounded-xl bg-lima px-3 py-2 text-sm font-bold text-noche">La hoja tiene datos de demostración. Bórralos en Ajustes antes de usarla en serio.</p>}
       </aside>
@@ -104,6 +106,7 @@ export function App() {
                 </button>
               ))}
             </div>
+            <div className="mx-auto mt-2 max-w-2xl"><InstalarApp compacto className="w-full" /></div>
           </div>
         )}
       </nav>

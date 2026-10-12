@@ -5,6 +5,8 @@ import { guardarUrlApi, urlApi } from '../lib/api'
 import type { Config } from '../lib/types'
 import { Btn, Campo, Input, Opciones, Seccion, Textarea, confirmar } from '../components/ui'
 import { Encabezado } from '../components/Encabezado'
+import { InstalarApp } from '../components/InstalarApp'
+import { useInstalacion } from '../lib/instalar'
 import { Cargando } from './Inicio'
 
 export function Ajustes() {
@@ -82,6 +84,8 @@ export function Ajustes() {
         <p className="mt-2 text-sm text-gris">Cambiar la clave cierra la sesión en todos los equipos. Si la olvidas, se restablece desde Apps Script con la función restablecerClave().</p>
       </Seccion>
 
+      <Instalacion />
+
       <BorrarDatos />
 
       <Seccion titulo="Conexión y datos">
@@ -122,6 +126,20 @@ function BorrarDatos() {
           await st.recargarTodo()
         } catch { /* aviso mostrado */ } finally { setEnviando(false) }
       }}>Borrar datos de ventas</Btn>
+    </Seccion>
+  )
+}
+
+function Instalacion() {
+  const { estado } = useInstalacion()
+  return (
+    <Seccion titulo="App en el celular">
+      {estado === 'instalada' ? <p>Estás usando la app instalada.</p> : (
+        <>
+          <p className="mb-3">Instálala para abrirla desde un ícono en tu pantalla de inicio, a pantalla completa, sin entrar por el navegador.</p>
+          <InstalarApp />
+        </>
+      )}
     </Seccion>
   )
 }

@@ -79,6 +79,14 @@ Para actualizar el backend: pega el `Code.gs` nuevo y en **Implementar → Gesti
 - **`borrarDatos()`** (desde el editor) o **Ajustes → Borrar datos de ventas** (pide la clave y escribir BORRAR): borra pedidos, detalle, pagos, gastos, cajas, movimientos e historial, y las opciones “(demo)”. Conserva la carta, los ajustes y la clave. Los códigos de pedido vuelven a empezar en 001. Se recupera solo desde Archivo → Historial de versiones de la hoja.
 - El modo `?demo` del navegador carga exactamente los mismos datos, en memoria.
 
+### App instalable en el celular
+El panel se instala como app (ícono en la pantalla de inicio, pantalla completa, sin barra del navegador):
+- **Android (Chrome/Edge)**: botón **Instalar app** (en el login, en el menú “Más” y en Ajustes) o menú ⋮ → Instalar app.
+- **iPhone/iPad**: en Safari, Compartir → **Agregar a inicio** (el botón muestra estos pasos).
+- Incluye accesos directos a Nueva venta, Pedidos y Cocina (mantener presionado el ícono en Android).
+- El service worker (`web/public/sw.js`) solo guarda los archivos de la app; los datos siempre se leen en vivo de Apps Script. Cada visita busca la versión publicada más reciente. Requiere internet para registrar.
+- Íconos generados con `node scripts/iconos.mjs` (necesita Chromium).
+
 ### 3. Primer uso
 Entra con la clave inicial y cámbiala en **Ajustes → Seguridad**. Revisa en **Carta** los productos “por revisar” (bebidas y Salchibroaster sin precio, descripciones pendientes) y en **Ajustes** confirma el número de WhatsApp.
 
