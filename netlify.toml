@@ -1,0 +1,16 @@
+# Netlify lee este archivo al conectar el repo. Publica automáticamente desde la rama main.
+[build]
+  base = "web"
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+  # Dirección /exec de Apps Script. Defínela en Netlify → Site configuration → Environment variables (VITE_API_URL).
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "no-referrer"
